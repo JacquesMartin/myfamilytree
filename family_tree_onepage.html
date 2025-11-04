@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Our Family Tree — One Page (No Login)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{--bg:#fffaf0;--accent:#0b8f6b;--muted:#5b6b67;--card:#ffffffcc}
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{background:linear-gradient(180deg,#e8fff7 0%, #fffaf0 60%);color:#113;}
+    header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #00000010}
+    .brand{display:flex;gap:12px;align-items:center}
+    .logo{width:44px;height:44px;border-radius:8px;background:url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="44" height="44"><rect rx="8" width="100%" height="100%" fill="%230b8f6b"/><text x="50%" y="52%" font-size="18" font-family="Inter,Arial" fill="white" text-anchor="middle" alignment-baseline="middle">FT</text></svg>') center/cover}
+    h1{font-size:18px;margin:0}
+    header .controls{display:flex;gap:8px;align-items:center}
+    button{background:var(--accent);color:white;border:none;padding:8px 12px;border-radius:8px;cursor:pointer}
+    button.ghost{background:transparent;color:var(--accent);border:1px solid #0b8f6b66}
+    main{display:flex;gap:18px;padding:18px}
+    /* left: canvas */
+    .canvas-wrap{flex:1;min-height:720px;background:linear-gradient(180deg,rgba(255,255,255,0.6),rgba(255,255,255,0.3));border-radius:12px;padding:12px;position:relative;overflow:hidden}
+    #canvas{width:100%;height:100%;position:relative;touch-action:none}
+    svg.connectors{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}
+    .node{position:absolute;width:170px;border-radius:10px;padding:8px;background:var(--card);box-shadow:0 6px 18px rgba(0,0,0,0.08);cursor:grab;border:1px solid #00000010}
+    .node:active{cursor:grabbing}
+    .node .thumb{width:48px;height:48px;border-radius:6px;background:#eee;background-size:cover;background-position:center;float:left;margin-right:8px}
+    .node .meta{font-size:13px}
+    .node .meta b{display:block}
+    .sidebar{width:380px}
+    .panel{background:white;border-radius:10px;padding:12px;box-shadow:0 6px 18px rgba(0,0,0,0.06)}
+    .form-row{display:flex;gap:8px;margin-bottom:8px}
+    input[type="text"],input[type="date"],select,textarea{width:100%;padding:8px;border-radius:6px;border:1px solid #e4e7e6}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    small.note{color:#556}
+    .list{margin-top:8px}
+    .compact{font-size:13px}
+    footer{padding:12px;text-align:center;color:#557}
+    .qr-holder{display:flex;gap:10px;align-items:center}
+    .muted{color:#6b6f6d}
+    .controls .btn-small{padding:6px 10px;font-size:13px}
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <div class="logo"></div>
+      <div>
+        <h1>Our Family Tree</h1>
+        <div class="muted">One-page editable family diagram — no login required</div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="btnExportPNG" class="btn-small">Export PNG</button>
+      <button id="btnExportJSON" class="btn-small ghost">Export JSON</button>
+      <button id="btnImportJSON" class="btn-small ghost">Import JSON</button>
+      <button id="btnGenerateLink" class="btn-small">Share (Link / QR)</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="canvas-wrap">
+      <div id="canvas">
+        <svg class="connectors" id="svgLines" xmlns="http://www.w3.org/2000/svg"></svg>
+      </div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="panel">
+        <h3 style="margin-top:0">Add / Edit Member</h3>
+        <div>
+          <label>Full name</label>
+          <input id="mName" type="text" placeholder="Juan Dela Cruz">
+        </div>
+        <div class="form-row">
+          <div style="flex:1"><label>Birthdate</label><input id="mDOB" type="date"></div>
+          <div style="width:130px"><label>Relation</label><input id="mRelation" type="text" placeholder="Father / Child"></div>
+        </div>
+        <div>
+          <label>Photo</label>
+          <input id="mPhoto" type="file" accept="image/*">
+          <small class="note">(optional) Upload or use an image URL after creation by editing the node.</small>
+        </div>
+        <div>
+          <label>Note</label>
+          <textarea id="mNote" rows="2" placeholder="Short note or nickname"></textarea>
+        </div>
+
+        <div class="form-row" style="margin-top:8px">
+          <div style="flex:1">
+            <label>Connect to parent (optional)</label>
+            <select id="mParent"><option value="">-- No parent --</option></select>
+          </div>
+          <div style="width:72px;align-self:flex-end">
+            <button id="btnAdd" style="width:100%">Add</button>
+          </div>
+        </div>
+
+        <hr>
+        <div class="compact">
+          <label>Nodes</label>
+          <div id="nodeList" class="list"></div>
+        </div>
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="panel">
+        <h4 style="margin:0 0 8px 0">Share / Import</h4>
+        <div class="qr-holder">
+          <div id="qr"></div>
+          <div style="flex:1">
+            <small class="note">Click "Generate Share Link" to create a short URL with the encoded tree data in the hash. Use the QR code to scan from phones.</small>
+          </div>
+        </div>
+        <div style="height:8px"></div>
+        <textarea id="shareLink" rows="2" style="width:100%" readonly></textarea>
+        <div style="height:8px"></div>
+        <input id="fileImport" type="file" accept="application/json" style="display:none">
+      </div>
+
+      <div style="height:12px"></div>
+
+      <div class="panel">
+        <h4 style="margin:0 0 8px 0">Tips</h4>
+        <ul class="muted">
+          <li>Drag nodes to reposition. Position saved automatically.</li>
+          <li>Share by copying the generated link or scanning QR—no server used.</li>
+          <li>Save a backup (Export JSON) to restore later or share with family.</li>
+        </ul>
+      </div>
+
+    </aside>
+  </main>
+
+  <footer>
+    <small>Made for families — tropical theme. All data stays in your browser unless you create a share link.</small>
+  </footer>
+
+  <!-- External libs: html2canvas for PNG export, QRCode for QR generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" integrity="sha512-BNa5Nf3q3ycz2e1r3VYhH3l8bB1tqfF1p7Jh9dea2X0b4h3U2pGcD9z6y0gpp0m3bG3r2bJj7j1W9u7I7B7w4g==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <script>
+    // Simple client-side family tree app (one-file)
+    const KEY = 'familyTreeData_v1'
+    let state = {nodes:[], links:[]}
+    const canvas = document.getElementById('canvas')
+    const svg = document.getElementById('svgLines')
+    const parentSelect = document.getElementById('mParent')
+    const nodeList = document.getElementById('nodeList')
+    const shareLink = document.getElementById('shareLink')
+    let dragState = null
+
+    // Utilities
+    function uid(prefix='n'){return prefix+Math.random().toString(36).slice(2,9)}
+    function save(){localStorage.setItem(KEY,JSON.stringify(state)); render()}
+    function load(){const v = localStorage.getItem(KEY); if(v){state=JSON.parse(v);} render()}
+
+    function addNode({name,dob,relation,note,photo, x=40, y=40, id=null}){
+      const nid = id||uid()
+      state.nodes.push({id:nid,name:name||'Unnamed',dob:dob||'',relation:relation||'',note:note||'',photo:photo||'',x,y})
+      save()
+      return nid
+    }
+    function addLink(parentId,childId){ if(!parentId || !childId) return; state.links.push({id:uid('l'),parent:parentId,child:childId}); save() }
+
+    function clearSVG(){ while(svg.firstChild) svg.removeChild(svg.firstChild) }
+
+    function render(){
+      // render nodes
+      parentSelect.innerHTML = '<option value="">-- No parent --</option>'
+      nodeList.innerHTML = ''
+      clearSVG()
+      state.nodes.forEach(n=>{
+        // update parent select
+        const opt = document.createElement('option'); opt.value=n.id; opt.textContent = n.name; parentSelect.appendChild(opt)
+        // list
+        const row = document.createElement('div'); row.style.display='flex'; row.style.justifyContent='space-between'; row.style.alignItems='center'; row.style.padding='6px 0';
+        const left = document.createElement('div'); left.innerHTML = '<b>'+escapeHtml(n.name)+'</b><div class="muted" style="font-size:12px">'+escapeHtml(n.relation||n.dob||'')+'</div>'
+        const actions = document.createElement('div')
+        const btnEdit = document.createElement('button'); btnEdit.textContent='Edit'; btnEdit.className='ghost'; btnEdit.onclick=()=>openEditor(n.id)
+        const btnDel = document.createElement('button'); btnDel.textContent='Delete'; btnDel.style.marginLeft='6px'; btnDel.onclick=()=>{ if(confirm('Delete this member?')){ state.nodes = state.nodes.filter(x=>x.id!==n.id); state.links = state.links.filter(l=>l.parent!==n.id && l.child!==n.id); save() }}
+        actions.appendChild(btnEdit); actions.appendChild(btnDel)
+        row.appendChild(left); row.appendChild(actions)
+        nodeList.appendChild(row)
+
+        // create node element if not exists
+        let el = document.getElementById('node_'+n.id)
+        if(!el){ el = document.createElement('div'); el.className='node'; el.id='node_'+n.id; el.setAttribute('data-id',n.id); el.innerHTML = `<div class="thumb" id="thumb_${n.id}"></div><div class="meta"><b>${escapeHtml(n.name)}</b><div style="font-size:12px;color:#556">${escapeHtml(n.relation)}</div><div style="font-size:11px;color:#444;margin-top:6px">${escapeHtml(n.note)}</div></div>`; canvas.appendChild(el)
+          // pointer events for drag
+          el.addEventListener('pointerdown', onNodePointerDown)
+        }
+        el.style.left = n.x+'px'; el.style.top = n.y+'px'
+        // thumb
+        const t = document.getElementById('thumb_'+n.id); if(t){ if(n.photo) t.style.backgroundImage = `url(${n.photo})`; else t.style.backgroundImage='none' }
+      })
+
+      // draw links
+      state.links.forEach(l=>{
+        const p = state.nodes.find(n=>n.id===l.parent)
+        const c = state.nodes.find(n=>n.id===l.child)
+        if(p && c){
+          const line = document.createElementNS('http://www.w3.org/2000/svg','path')
+          const sx = p.x + 85; const sy = p.y + 24; const ex = c.x + 85; const ey = c.y + 24
+          const dx = (ex-sx)/2
+          const d = `M ${sx} ${sy} C ${sx+dx} ${sy} ${ex-dx} ${ey} ${ex} ${ey}`
+          line.setAttribute('d',d); line.setAttribute('stroke','#0b8f6b'); line.setAttribute('stroke-width','2'); line.setAttribute('fill','none'); svg.appendChild(line)
+        }
+      })
+    }
+
+    function onNodePointerDown(e){
+      const el = e.currentTarget; const id = el.getAttribute('data-id');
+      const node = state.nodes.find(n=>n.id===id)
+      dragState = {id, startX: e.clientX, startY: e.clientY, origX: node.x, origY: node.y, el}
+      el.setPointerCapture(e.pointerId)
+      el.addEventListener('pointermove', onNodePointerMove)
+      el.addEventListener('pointerup', onNodePointerUp)
+      el.addEventListener('pointercancel', onNodePointerUp)
+    }
+    function onNodePointerMove(e){ if(!dragState) return; const dx = e.clientX - dragState.startX; const dy = e.clientY - dragState.startY; const node = state.nodes.find(n=>n.id===dragState.id); node.x = Math.max(8, Math.round(dragState.origX + dx)); node.y = Math.max(8, Math.round(dragState.origY + dy)); dragState.el.style.left = node.x+'px'; dragState.el.style.top = node.y+'px'; renderLinesOnly() }
+    function onNodePointerUp(e){ if(!dragState) return; try{ dragState.el.releasePointerCapture(e.pointerId) }catch(_){} dragState.el.removeEventListener('pointermove', onNodePointerMove); dragState.el.removeEventListener('pointerup', onNodePointerUp); dragState.el.removeEventListener('pointercancel', onNodePointerUp); dragState = null; save() }
+
+    function renderLinesOnly(){ clearSVG(); state.links.forEach(l=>{ const p = state.nodes.find(n=>n.id===l.parent); const c = state.nodes.find(n=>n.id===l.child); if(p && c){ const line = document.createElementNS('http://www.w3.org/2000/svg','path'); const sx = p.x + 85; const sy = p.y + 24; const ex = c.x + 85; const ey = c.y + 24; const dx = (ex-sx)/2; const d = `M ${sx} ${sy} C ${sx+dx} ${sy} ${ex-dx} ${ey} ${ex} ${ey}`; line.setAttribute('d',d); line.setAttribute('stroke','#0b8f6b'); line.setAttribute('stroke-width','2'); line.setAttribute('fill','none'); svg.appendChild(line) } }) }
+
+    // Editor
+    document.getElementById('btnAdd').addEventListener('click',async()=>{
+      const name = document.getElementById('mName').value.trim(); if(!name){alert('Please enter a name'); return}
+      const dob = document.getElementById('mDOB').value
+      const relation = document.getElementById('mRelation').value
+      const note = document.getElementById('mNote').value
+      const parent = document.getElementById('mParent').value
+      // photo
+      const file = document.getElementById('mPhoto').files[0]
+      let photoData = ''
+      if(file){ photoData = await readFileAsDataURL(file) }
+      const x = 40 + (state.nodes.length%4)*190
+      const y = 40 + Math.floor(state.nodes.length/4)*120
+      const nid = addNode({name,dob,relation,note,photo:photoData,x,y})
+      if(parent) addLink(parent,nid)
+      // reset form
+      document.getElementById('mName').value=''; document.getElementById('mDOB').value=''; document.getElementById('mRelation').value=''; document.getElementById('mNote').value=''; document.getElementById('mPhoto').value=''
+      render()
+    })
+
+    function openEditor(id){ const n = state.nodes.find(x=>x.id===id); if(!n) return; document.getElementById('mName').value=n.name; document.getElementById('mDOB').value=n.dob; document.getElementById('mRelation').value=n.relation; document.getElementById('mNote').value=n.note; // change Add to Update
+      const btn = document.getElementById('btnAdd'); btn.textContent='Update'; btn.onclick = async ()=>{ n.name = document.getElementById('mName').value; n.dob = document.getElementById('mDOB').value; n.relation=document.getElementById('mRelation').value; n.note=document.getElementById('mNote').value; const file = document.getElementById('mPhoto').files[0]; if(file){ n.photo = await readFileAsDataURL(file) } save(); btn.textContent='Add'; btn.onclick=null; document.getElementById('mName').value=''; document.getElementById('mDOB').value=''; document.getElementById('mRelation').value=''; document.getElementById('mNote').value=''; document.getElementById('mPhoto').value=''; render(); }
+    }
+
+    async function readFileAsDataURL(file){ return new Promise((res,rej)=>{ const r = new FileReader(); r.onload = ()=>res(r.result); r.onerror = rej; r.readAsDataURL(file) }) }
+
+    // Export / Import
+    document.getElementById('btnExportJSON').addEventListener('click', ()=>{
+      const dataStr = JSON.stringify(state, null, 2)
+      const blob = new Blob([dataStr],{type:'application/json'}); const url = URL.createObjectURL(blob)
+      const a = document.createElement('a'); a.href=url; a.download='family-tree.json'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url)
+    })
+    document.getElementById('btnImportJSON').addEventListener('click', ()=> document.getElementById('fileImport').click())
+    document.getElementById('fileImport').addEventListener('change', async (e)=>{
+      const f = e.target.files[0]; if(!f) return; const txt = await f.text(); try{ const j = JSON.parse(txt); if(confirm('Replace current tree with imported file?')){ state=j; save(); }}catch(err){alert('Invalid JSON')}
+    })
+
+    document.getElementById('btnExportPNG').addEventListener('click', async ()=>{
+      const wrap = document.querySelector('.canvas-wrap')
+      // temporarily expand to content size
+      const rect = wrap.getBoundingClientRect()
+      const opts = {scale:2,useCORS:true}
+      html2canvas(wrap,opts).then(canvasImg=>{
+        const a = document.createElement('a'); a.href = canvasImg.toDataURL('image/png'); a.download = 'family-tree.png'; a.click();
+      }).catch(err=>alert('Export failed: '+err))
+    })
+
+    // Share link & QR
+    document.getElementById('btnGenerateLink').addEventListener('click', ()=>{
+      const json = JSON.stringify(state)
+      const encoded = encodeURIComponent(btoa(unescape(encodeURIComponent(json))))
+      const url = location.origin + location.pathname + '#data=' + encoded
+      shareLink.value = url
+      // QR
+      document.getElementById('qr').innerHTML = ''
+      new QRCode(document.getElementById('qr'), { text: url, width: 96, height: 96 })
+    })
+
+    // load from share hash if present
+    function loadFromHash(){ const h = location.hash || ''; if(h.includes('data=')){ try{ const enc = h.split('data=')[1]; const json = decodeURIComponent(escape(atob(decodeURIComponent(enc)))); state = JSON.parse(json); save(); }catch(e){console.warn('Failed to parse data from URL') } } }
+
+    // small helpers
+    function escapeHtml(s){ if(!s) return ''; return s.replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;') }
+
+    function initEmpty(){ if(state.nodes.length===0){ const rootId = addNode({name:'Start Family Tree',relation:'Root',note:'Click to edit',x:40,y:40}); save(); }}
+
+    // load & start
+    loadFromHash(); load(); initEmpty()
+
+    // responsive: recalc lines on resize
+    window.addEventListener('resize', ()=>render())
+
+    // allow dropping a JSON via paste
+    window.addEventListener('paste',(e)=>{
+      try{ const txt = (e.clipboardData||window.clipboardData).getData('text'); if(txt && txt.trim().startsWith('{') ){ const j = JSON.parse(txt); if(confirm('Import pasted tree JSON?')){ state=j; save() } } }catch(_){}
+    })
+
+  </script>
+</body>
+</html>
